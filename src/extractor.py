@@ -29,8 +29,6 @@ def extract_text_from_document(file_bytes: bytes, file_type: str, file_name: str
     else:
         raise ValueError(f"Unsupported file type: {file_type}")
 
-
-# ── PDF Extraction ────────────────────────────────────────────────────────────
 def extract_from_pdf(file_bytes: bytes) -> str:
     """Extract text from PDF preserving reading order using pdfplumber."""
     text_parts = []
@@ -42,7 +40,6 @@ def extract_from_pdf(file_bytes: bytes) -> str:
 
     full_text = "\n\n".join(text_parts).strip()
 
-    # Fallback: if pdfplumber yields nothing (scanned PDF), try OCR via image conversion
     if not full_text:
         full_text = extract_pdf_via_ocr(file_bytes)
 
@@ -68,8 +65,6 @@ def extract_pdf_via_ocr(file_bytes: bytes) -> str:
     except Exception:
         return ""
 
-
-# ── DOCX Extraction ───────────────────────────────────────────────────────────
 def extract_from_docx(file_bytes: bytes) -> str:
     """Extract text from DOCX including paragraphs and table cells."""
     doc = Document(io.BytesIO(file_bytes))
@@ -81,7 +76,6 @@ def extract_from_docx(file_bytes: bytes) -> str:
         if stripped:
             text_parts.append(stripped)
 
-    # Tables (in reading order)
     for table in doc.tables:
         for row in table.rows:
             row_text = " | ".join(
@@ -92,17 +86,13 @@ def extract_from_docx(file_bytes: bytes) -> str:
 
     return "\n".join(text_parts).strip()
 
-
-# ── Image Extraction (OCR) ────────────────────────────────────────────────────
 def extract_from_image(file_bytes: bytes) -> str:
     """OCR an image file using Tesseract."""
     img = Image.open(io.BytesIO(file_bytes))
 
-    # Convert to RGB if needed (handles PNG with alpha, etc.)
     if img.mode not in ("RGB", "L"):
         img = img.convert("RGB")
 
-    # Enhance image for better OCR accuracy
     img = preprocess_image_for_ocr(img)
 
     custom_config = r"--oem 3 --psm 3"

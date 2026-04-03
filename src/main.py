@@ -15,7 +15,6 @@ from extractor import extract_text_from_document
 
 load_dotenv()
 
-# ── App Setup ────────────────────────────────────────────────────────────────
 app = FastAPI(
     title="AI Document Analysis API",
     description="Extracts summary, entities, and sentiment from PDF, DOCX, and image files using Gemini AI.",
@@ -30,17 +29,15 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ── Gemini Setup ──────────────────────────────────────────────────────────────
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 API_SECRET_KEY = os.getenv("API_SECRET_KEY", "sk_track2_987654321")
 
 client = genai.Client(api_key=GEMINI_API_KEY)
 
 
-# ── Schemas ───────────────────────────────────────────────────────────────────
 class DocumentRequest(BaseModel):
     fileName: str
-    fileType: str          # pdf | docx | image
+    fileType: str          
     fileBase64: str
 
 
@@ -58,15 +55,11 @@ class DocumentResponse(BaseModel):
     entities: EntitiesResponse
     sentiment: str
 
-
-# ── Auth ──────────────────────────────────────────────────────────────────────
 def verify_api_key(x_api_key: Optional[str] = Header(default=None)):
     if x_api_key != API_SECRET_KEY:
         raise HTTPException(status_code=401, detail="Unauthorized: Invalid or missing API key.")
     return x_api_key
 
-
-# ── Gemini AI Analysis ────────────────────────────────────────────────────────
 def analyze_with_gemini(text: str) -> dict:
     """Send extracted text to Gemini and get structured JSON analysis."""
 
@@ -109,8 +102,6 @@ Rules:
 
     return json.loads(raw)
 
-
-# ── Routes ────────────────────────────────────────────────────────────────────
 @app.get("/")
 def root():
     return {"message": "AI Document Analysis API is running.", "docs": "/docs"}
@@ -126,7 +117,6 @@ def analyze_document(
     payload: DocumentRequest,
     api_key: str = Depends(verify_api_key),
 ):
-    # 1. Validate file type
     file_type = payload.fileType.lower().strip()
     if file_type not in ("pdf", "docx", "image"):
         raise HTTPException(
@@ -134,13 +124,11 @@ def analyze_document(
             detail=f"Unsupported fileType '{payload.fileType}'. Accepted: pdf, docx, image."
         )
 
-    # 2. Decode base64
     try:
         file_bytes = base64.b64decode(payload.fileBase64)
     except Exception:
         raise HTTPException(status_code=400, detail="Invalid base64 encoding.")
 
-    # 3. Extract text
     try:
         extracted_text = extract_text_from_document(file_bytes, file_type, payload.fileName)
     except Exception as e:
@@ -149,7 +137,6 @@ def analyze_document(
     if not extracted_text or len(extracted_text.strip()) < 10:
         raise HTTPException(status_code=422, detail="Could not extract meaningful text from the document.")
 
-    # 4. AI Analysis via Gemini
     try:
         analysis = analyze_with_gemini(extracted_text)
     except json.JSONDecodeError as e:
@@ -157,7 +144,6 @@ def analyze_document(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"AI analysis failed: {str(e)}")
 
-    # 5. Build response
     return DocumentResponse(
         status="success",
         fileName=payload.fileName,
